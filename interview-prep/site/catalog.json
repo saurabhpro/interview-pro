@@ -1,0 +1,111 @@
+[
+  {
+    "id": "coding-patterns",
+    "title": "Coding patterns: recognise the shape quickly",
+    "path": "content/general/coding-patterns-deck.md",
+    "section": "Start here",
+    "tags": ["coding", "algorithms", "patterns"],
+    "description": "A routing table for sliding windows, heaps, graphs, DP, stacks, backtracking and the invariants that make solutions defensible."
+  },
+  {
+    "id": "staff-system-design",
+    "title": "Staff-level system design deck",
+    "path": "content/general/staff-system-design-deck.md",
+    "section": "Start here",
+    "tags": ["system design", "staff", "architecture"],
+    "description": "Twelve classic design prompts organised as clarify, numbers, architecture, deep dives, failure modes and trade-offs."
+  },
+  {
+    "id": "notification-system",
+    "title": "Notification system: staff-bar rehearsal",
+    "path": "content/general/notification-system-staff-bar-script.md",
+    "section": "Start here",
+    "tags": ["system design", "notifications", "failure modes"],
+    "description": "A spoken end-to-end design script with queues, idempotency, aggregation, backpressure and operational validation."
+  },
+  {
+    "id": "fixed-price-share-offering",
+    "title": "Fixed-price share offering",
+    "path": "content/company/fixed-price-share-offering.md",
+    "section": "System design",
+    "tags": ["payments", "inventory", "idempotency"],
+    "description": "A correctness-first design for whole-share purchases, asynchronous payment, reservations, reconciliation and failure recovery."
+  },
+  {
+    "id": "scalable-transfer-settlement",
+    "title": "Scalable transfer settlement",
+    "path": "content/company/scalable-transfer-settlement.md",
+    "section": "System design",
+    "tags": ["payments", "ledger", "reconciliation"],
+    "description": "A reusable transfer platform rehearsal covering ledger legs, partner integration, durable workflows and operational breaks."
+  },
+  {
+    "id": "citadel-public-questions",
+    "title": "Citadel: public question research",
+    "path": "content/company/citadel-public-question-research.md",
+    "section": "Company questions",
+    "tags": ["citadel", "java", "algorithms", "concurrency"],
+    "description": "Evidence-ranked public question signals and the general problem-solving behaviours to practise; no leaked material."
+  },
+  {
+    "id": "jpmorgan-public-questions",
+    "title": "JPMorgan: backend question bank",
+    "path": "content/company/jpmorgan-backend-question-bank.md",
+    "section": "Company questions",
+    "tags": ["jpmorgan", "java", "algorithms"],
+    "description": "Evidence-informed JPMorgan coding and system-design drills covering caches, graphs, strings, arrays, DP and concurrency."
+  },
+  {
+    "id": "agoda-public-research",
+    "title": "Agoda: live coding research",
+    "path": "content/company/agoda-live-coding-research.md",
+    "section": "Company questions",
+    "tags": ["agoda", "coding", "algorithms", "public reports"],
+    "description": "Publicly reported Agoda problem patterns, confidence labels and the algorithm families behind them."
+  },
+  {
+    "id": "java-gc-isolation",
+    "title": "Database isolation and Java GC",
+    "path": "content/core/database-isolation-java-gc.html",
+    "kind": "html",
+    "section": "Core concepts",
+    "tags": ["java", "gc", "databases", "lead"],
+    "description": "A structured lead-level refresher on transaction isolation, optimistic locking, G1, ZGC and failure semantics."
+  },
+  {
+    "id": "hashmap-concurrenthashmap",
+    "title": "HashMap and ConcurrentHashMap architecture",
+    "path": "content/core/hashmap-concurrenthashmap-architecture.html",
+    "kind": "html",
+    "section": "Core concepts",
+    "tags": ["java", "hashmap", "concurrency"],
+    "description": "Internal structure, collision handling, resizing, tree bins and concurrent access guarantees."
+  },
+  {
+    "id": "g1-zgc-tcp-udp",
+    "title": "G1, ZGC, TCP and UDP",
+    "path": "content/core/g1-zgc-tcp-udp.html",
+    "kind": "html",
+    "section": "Core concepts",
+    "tags": ["java", "gc", "networking"],
+    "description": "A concise comparison of low-pause collectors and what transport choice means in actual application code."
+  },
+  {
+    "id": "limit-order-book",
+    "title": "Limit order book: Java implementation",
+    "path": "code/java/LimitOrderBook.java",
+    "kind": "code",
+    "section": "Code solutions",
+    "tags": ["java", "order book", "tree map"],
+    "description": "Stateful match-and-rest implementation using price priority, FIFO queues and retained Fill history."
+  },
+  {
+    "id": "limit-order-book-tests",
+    "title": "Limit order book: unit tests",
+    "path": "code/tests/LimitOrderBookTest.java",
+    "kind": "code",
+    "section": "Code solutions",
+    "tags": ["java", "tests", "edge cases"],
+    "description": "Tests for best price, FIFO, partial and multiple fills, residual orders and immutable fill snapshots."
+  }
+]

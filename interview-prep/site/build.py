@@ -1,0 +1,324 @@
+#!/usr/bin/env python3
+"""Build the curated interview-preparation library as a static GitHub Pages site."""
+
+from __future__ import annotations
+
+import html
+import json
+import os
+import re
+import shutil
+from pathlib import Path
+from urllib.parse import urlparse
+
+
+SITE_ROOT = Path(__file__).resolve().parent
+REPO_ROOT = SITE_ROOT.parents[1]
+OUTPUT_ROOT = Path(os.environ.get("SITE_OUTPUT", REPO_ROOT / "_site"))
+GITHUB_SOURCE_ROOT = "https://github.com/saurabhpro/Interview-Programs/blob/master/"
+
+
+def read_catalog() -> list[dict]:
+    catalog = json.loads((SITE_ROOT / "catalog.json").read_text(encoding="utf-8"))
+    ids = [entry["id"] for entry in catalog]
+    if len(ids) != len(set(ids)):
+        raise ValueError("catalog IDs must be unique")
+
+    for entry in catalog:
+        source = REPO_ROOT / entry["path"]
+        if not source.is_file():
+            raise FileNotFoundError(f"catalog source does not exist: {entry['path']}")
+        entry.setdefault("kind", source.suffix.removeprefix(".") or "text")
+    return catalog
+
+
+def safe_href(href: str, source_path: str, path_to_id: dict[str, str]) -> str:
+    """Resolve local markdown links into site pages; leave trusted URLs intact."""
+
+    href = href.strip()
+    parsed = urlparse(href)
+    if parsed.scheme in {"http", "https", "mailto"}:
+        return href
+    if href.startswith("#"):
+        return href
+    if parsed.scheme or href.lower().startswith("javascript:"):
+        return "#"
+
+    target = (REPO_ROOT / Path(source_path).parent / href.split("#", 1)[0]).resolve()
+    try:
+        relative = target.relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return "#"
+
+    fragment = ""
+    if "#" in href:
+        fragment = "#" + href.split("#", 1)[1]
+    if relative in path_to_id:
+        return f"../pages/{path_to_id[relative]}.html{fragment}"
+    return GITHUB_SOURCE_ROOT + relative + fragment
+
+
+def render_inline(text: str, source_path: str, path_to_id: dict[str, str]) -> str:
+    escaped = html.escape(text, quote=False)
+    tokens: list[str] = []
+
+    def stash_code(match: re.Match[str]) -> str:
+        tokens.append(f"<code>{html.escape(match.group(1), quote=False)}</code>")
+        return f"\x00TOKEN{len(tokens) - 1}\x00"
+
+    escaped = re.sub(r"`([^`]+)`", stash_code, escaped)
+
+    def link_replacement(match: re.Match[str]) -> str:
+        label = match.group(1)
+        href = safe_href(html.unescape(match.group(2)), source_path, path_to_id)
+        return f'<a href="{html.escape(href, quote=True)}">{label}</a>'
+
+    escaped = re.sub(r"\[([^\]]+)\]\(([^)\s]+)(?:\s+['\"][^)]*['\"])?\)", link_replacement, escaped)
+    escaped = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", escaped)
+    escaped = re.sub(r"__([^_]+)__", r"<strong>\1</strong>", escaped)
+    escaped = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<em>\1</em>", escaped)
+    escaped = re.sub(r"(?<!_)_([^_]+)_(?!_)", r"<em>\1</em>", escaped)
+
+    for index, token in enumerate(tokens):
+        escaped = escaped.replace(f"\x00TOKEN{index}\x00", token)
+    return escaped
+
+
+def table_cells(line: str) -> list[str]:
+    content = line.strip()
+    if content.startswith("|"):
+        content = content[1:]
+    if content.endswith("|"):
+        content = content[:-1]
+    return [cell.strip() for cell in content.split("|")]
+
+
+def is_table_separator(line: str) -> bool:
+    cells = table_cells(line)
+    return bool(cells) and all(re.fullmatch(r":?-{3,}:?", cell) for cell in cells)
+
+
+def render_markdown(markdown: str, source_path: str, path_to_id: dict[str, str]) -> str:
+    lines = markdown.replace("\r\n", "\n").split("\n")
+    output: list[str] = []
+    index = 0
+
+    while index < len(lines):
+        line = lines[index]
+        stripped = line.strip()
+
+        if not stripped:
+            index += 1
+            continue
+
+        fence = re.match(r"^\s*```\s*([\w+-]*)\s*$", line)
+        if fence:
+            language = fence.group(1)
+            index += 1
+            code_lines: list[str] = []
+            while index < len(lines) and not re.match(r"^\s*```\s*$", lines[index]):
+                code_lines.append(lines[index])
+                index += 1
+            if index < len(lines):
+                index += 1
+            class_name = f' class="language-{html.escape(language, quote=True)}"' if language else ""
+            output.append(f"<pre><code{class_name}>{html.escape(chr(10).join(code_lines), quote=False)}</code></pre>")
+            continue
+
+        heading = re.match(r"^\s*(#{1,6})\s+(.+?)\s*#*\s*$", line)
+        if heading:
+            level = len(heading.group(1))
+            text = render_inline(heading.group(2), source_path, path_to_id)
+            anchor = re.sub(r"[^a-z0-9]+", "-", re.sub(r"<[^>]+>", "", heading.group(2).lower())).strip("-")
+            output.append(f'<h{level} id="{anchor}">{text}</h{level}>')
+            index += 1
+            continue
+
+        if stripped in {"---", "***", "___"}:
+            output.append("<hr>")
+            index += 1
+            continue
+
+        if line.lstrip().startswith(">"):
+            quote_lines: list[str] = []
+            while index < len(lines) and lines[index].lstrip().startswith(">"):
+                quote_lines.append(re.sub(r"^\s*>\s?", "", lines[index]))
+                index += 1
+            quote = "<br>".join(render_inline(value, source_path, path_to_id) for value in quote_lines)
+            output.append(f"<blockquote>{quote}</blockquote>")
+            continue
+
+        if "|" in line and index + 1 < len(lines) and is_table_separator(lines[index + 1]):
+            headers = table_cells(line)
+            index += 2
+            rows: list[list[str]] = []
+            while index < len(lines) and "|" in lines[index] and lines[index].strip():
+                rows.append(table_cells(lines[index]))
+                index += 1
+            head_html = "".join(f"<th>{render_inline(cell, source_path, path_to_id)}</th>" for cell in headers)
+            body_html = "".join(
+                "<tr>" + "".join(
+                    f"<td>{render_inline(cell, source_path, path_to_id)}</td>" for cell in row
+                ) + "</tr>"
+                for row in rows
+            )
+            output.append(f"<div class=table-wrap><table><thead><tr>{head_html}</tr></thead><tbody>{body_html}</tbody></table></div>")
+            continue
+
+        unordered = re.match(r"^\s*[-*+]\s+(.+)$", line)
+        ordered = re.match(r"^\s*\d+[.)]\s+(.+)$", line)
+        if unordered or ordered:
+            tag = "ul" if unordered else "ol"
+            item_pattern = r"^\s*[-*+]\s+(.+)$" if unordered else r"^\s*\d+[.)]\s+(.+)$"
+            items: list[str] = []
+            while index < len(lines):
+                item_match = re.match(item_pattern, lines[index])
+                if not item_match:
+                    break
+                items.append(f"<li>{render_inline(item_match.group(1), source_path, path_to_id)}</li>")
+                index += 1
+            output.append(f"<{tag}>{''.join(items)}</{tag}>")
+            continue
+
+        paragraph_lines = [stripped]
+        index += 1
+        while index < len(lines) and lines[index].strip():
+            candidate = lines[index]
+            if (
+                re.match(r"^\s*(#{1,6})\s+", candidate)
+                or re.match(r"^\s*```", candidate)
+                or candidate.lstrip().startswith(">")
+                or re.match(r"^\s*[-*+]\s+", candidate)
+                or re.match(r"^\s*\d+[.)]\s+", candidate)
+            ):
+                break
+            paragraph_lines.append(candidate.strip())
+            index += 1
+        paragraph = "<br>".join(render_inline(value, source_path, path_to_id) for value in paragraph_lines)
+        output.append(f"<p>{paragraph}</p>")
+
+    return "\n".join(output)
+
+
+def render_html_source(content: str) -> str:
+    body = re.search(r"<body[^>]*>(.*)</body>", content, flags=re.IGNORECASE | re.DOTALL)
+    if not body:
+        return html.escape(content, quote=False)
+    inner = body.group(1)
+    inner = re.sub(r"<script\b[^>]*>.*?</script>", "", inner, flags=re.IGNORECASE | re.DOTALL)
+    inner = re.sub(r"<link\b[^>]*>", "", inner, flags=re.IGNORECASE)
+    return inner.strip()
+
+
+def page_shell(title: str, body: str, source_path: str, catalog_entry: dict) -> str:
+    tags = "".join(f'<span class="tag">{html.escape(tag)}</span>' for tag in catalog_entry["tags"])
+    source_url = GITHUB_SOURCE_ROOT + source_path
+    return f'''<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="{html.escape(catalog_entry["description"], quote=True)}">
+  <title>{html.escape(title)} · Interview Prep Library</title>
+  <link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../index.html"><span class="brand-mark">IP</span><span>Interview Prep Library</span></a>
+    <a class="back-link" href="../index.html">← All materials</a>
+  </header>
+  <main class="article-wrap">
+    <div class="article-meta"><span>{html.escape(catalog_entry["section"])}</span><span class="dot">•</span>{tags}</div>
+    <h1 class="article-title">{html.escape(title)}</h1>
+    <p class="article-dek">{html.escape(catalog_entry["description"])}</p>
+    <div class="article-actions"><a class="source-link" href="{html.escape(source_url, quote=True)}">Open source file on GitHub ↗</a></div>
+    <article class="prose">{body}</article>
+  </main>
+  <footer class="footer"><span>Curated interview practice · no leaked or confidential material</span><a href="../index.html">Back to library</a></footer>
+</body>
+</html>'''
+
+
+def build() -> None:
+    catalog = read_catalog()
+    path_to_id = {entry["path"]: entry["id"] for entry in catalog}
+    if OUTPUT_ROOT.exists():
+        shutil.rmtree(OUTPUT_ROOT)
+    (OUTPUT_ROOT / "pages").mkdir(parents=True)
+    (OUTPUT_ROOT / "assets").mkdir(parents=True)
+
+    cards: list[str] = []
+    for entry in catalog:
+        source_path = entry["path"]
+        source = REPO_ROOT / source_path
+        raw = source.read_text(encoding="utf-8")
+        if entry["kind"] == "html":
+            body = render_html_source(raw)
+        elif entry["kind"] == "code":
+            body = f"<pre><code>{html.escape(raw, quote=False)}</code></pre>"
+        else:
+            body = render_markdown(raw, source_path, path_to_id)
+        (OUTPUT_ROOT / "pages" / f'{entry["id"]}.html').write_text(
+            page_shell(entry["title"], body, source_path, entry), encoding="utf-8"
+        )
+        searchable = " ".join([entry["title"], entry["section"], *entry["tags"], entry["description"]]).lower()
+        tags = "".join(f'<span class="tag">{html.escape(tag)}</span>' for tag in entry["tags"][:3])
+        cards.append(
+            f'''<a class="card" href="pages/{entry["id"]}.html" data-section="{html.escape(entry["section"])}" data-search="{html.escape(searchable, quote=True)}">
+  <div class="card-top"><span class="eyebrow">{html.escape(entry["section"])}</span><span class="arrow">↗</span></div>
+  <h2>{html.escape(entry["title"])}</h2>
+  <p>{html.escape(entry["description"])}</p>
+  <div class="card-tags">{tags}</div>
+</a>'''
+        )
+
+    sections = sorted({entry["section"] for entry in catalog}, key=lambda section: (section != "Start here", section))
+    filter_buttons = '<button class="filter active" data-filter="all">All</button>' + "".join(
+        f'<button class="filter" data-filter="{html.escape(section, quote=True)}">{html.escape(section)}</button>'
+        for section in sections
+    )
+    catalog_json = json.dumps(catalog, ensure_ascii=False).replace("</", "<\\/")
+    index = f'''<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A searchable, curated library of system design, coding and Java interview preparation.">
+  <title>Interview Prep Library</title>
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="index.html"><span class="brand-mark">IP</span><span>Interview Prep Library</span></a>
+    <span class="private-pill">Private study hub</span>
+  </header>
+  <main class="home-wrap">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="kicker">Saurabh’s working library</p>
+        <h1>Find the right rehearsal<br><em>before the clock starts.</em></h1>
+        <p class="hero-sub">A single index for system design, coding patterns, company question signals, core Java concepts and verified solutions.</p>
+      </div>
+      <div class="hero-stats"><strong>{len(catalog)}</strong><span>curated materials</span><strong>{len(sections)}</strong><span>study lanes</span></div>
+    </section>
+    <section class="library" aria-labelledby="library-title">
+      <div class="library-head"><div><p class="kicker">Library</p><h2 id="library-title">Choose a lane</h2></div><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search materials, topics or companies…" autocomplete="off"><kbd>/</kbd></label></div>
+      <div class="filters" role="group" aria-label="Filter materials">{filter_buttons}</div>
+      <div class="card-grid" id="cards">{''.join(cards)}</div>
+      <p id="empty" class="empty" hidden>No matching material. Try a company, topic or pattern.</p>
+    </section>
+    <aside class="privacy-note"><span class="note-icon">✓</span><p><strong>Curated by design.</strong> This hub includes preparation material and code, not recruiter correspondence, calendar details or meeting transcripts. Keep the GitHub Pages visibility private if your account plan supports it.</p></aside>
+  </main>
+  <footer class="footer"><span>Curated interview practice · no leaked or confidential material</span><a href="https://github.com/saurabhpro/Interview-Programs">Repository ↗</a></footer>
+  <script>window.INTERVIEW_CATALOG = {catalog_json};</script>
+  <script src="assets/app.js"></script>
+</body>
+</html>'''
+    (OUTPUT_ROOT / "index.html").write_text(index, encoding="utf-8")
+    shutil.copy2(SITE_ROOT / "site.css", OUTPUT_ROOT / "assets" / "site.css")
+    shutil.copy2(SITE_ROOT / "app.js", OUTPUT_ROOT / "assets" / "app.js")
+    (OUTPUT_ROOT / ".nojekyll").write_text("", encoding="utf-8")
+
+
+if __name__ == "__main__":
+    build()
