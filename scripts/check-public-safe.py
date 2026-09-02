@@ -4,11 +4,12 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
 
-SKIPPED_DIRECTORIES = {".git", "_site"}
+SKIPPED_DIRECTORIES = {".git", ".review", "_site"}
 
 
 def _joined(*parts: str) -> str:
@@ -35,10 +36,71 @@ PATTERNS = (
 )
 
 
-def text_files(root: Path):
-    for path in sorted(root.rglob("*")):
-        if not path.is_file() or any(part in SKIPPED_DIRECTORIES for part in path.parts):
+def git_tracked_files(root: Path) -> list[Path] | None:
+    """Return tracked files beneath root, or None when root is not in Git."""
+    try:
+        repository = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+    except FileNotFoundError:
+        return None
+    if repository.returncode != 0:
+        return None
+
+    repository_root = Path(repository.stdout.strip()).resolve()
+    try:
+        root.relative_to(repository_root)
+    except ValueError:
+        return None
+
+    tracked = subprocess.run(
+        ["git", "-C", str(repository_root), "ls-files", "-z"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+    )
+    if tracked.returncode != 0:
+        return None
+
+    paths: list[Path] = []
+    for encoded_path in tracked.stdout.split(b"\0"):
+        if not encoded_path:
             continue
+        try:
+            relative_to_repository = Path(encoded_path.decode("utf-8"))
+        except UnicodeDecodeError:
+            continue
+        path = repository_root / relative_to_repository
+        try:
+            relative_to_root = path.relative_to(root)
+        except ValueError:
+            continue
+        if any(part in SKIPPED_DIRECTORIES for part in relative_to_root.parts):
+            continue
+        if path.is_file():
+            paths.append(path)
+    return sorted(paths)
+
+
+def candidate_files(root: Path):
+    tracked = git_tracked_files(root)
+    if tracked is not None:
+        yield from tracked
+        return
+
+    for path in sorted(root.rglob("*")):
+        relative_to_root = path.relative_to(root)
+        if not path.is_file() or any(part in SKIPPED_DIRECTORIES for part in relative_to_root.parts):
+            continue
+        yield path
+
+
+def text_files(root: Path):
+    for path in candidate_files(root):
         try:
             raw = path.read_bytes()
         except OSError as error:
