@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 
-SKIPPED_DIRECTORIES = {".git", ".review", "_site"}
+SKIPPED_DIRECTORIES = {".git", "_site"}
 
 
 def _joined(*parts: str) -> str:

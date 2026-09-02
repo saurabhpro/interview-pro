@@ -7,8 +7,8 @@ import html
 import json
 import re
 import shutil
-from pathlib import Path
-from urllib.parse import urlparse
+from pathlib import Path, PureWindowsPath
+from urllib.parse import unquote, urlparse
 
 
 SITE_ROOT = Path(__file__).resolve().parent
@@ -48,14 +48,57 @@ def safe_external_href(href: str) -> str:
     return "#" if is_private_source_url(href) else href
 
 
+def validate_catalog_path(catalog_path: object) -> Path:
+    """Resolve a catalog source only when it stays in a public content root."""
+
+    if not isinstance(catalog_path, str) or not catalog_path:
+        raise ValueError(f"invalid catalog path: {catalog_path!r} must be a non-empty string")
+
+    decoded_path = catalog_path
+    for _ in range(8):
+        next_decoded_path = unquote(decoded_path)
+        if next_decoded_path == decoded_path:
+            break
+        decoded_path = next_decoded_path
+    else:
+        raise ValueError(f"invalid catalog path: {catalog_path!r} has excessive URL encoding")
+
+    decoded_parts = decoded_path.replace("\\", "/").split("/")
+    windows_path = PureWindowsPath(decoded_path)
+    if (
+        Path(catalog_path).is_absolute()
+        or windows_path.is_absolute()
+        or windows_path.drive
+        or "\\" in catalog_path
+        or ".." in decoded_parts
+    ):
+        raise ValueError(f"invalid catalog path: {catalog_path!r} must be relative without traversal")
+
+    path_parts = catalog_path.split("/")
+    if not path_parts or path_parts[0] not in {"content", "code"}:
+        raise ValueError(f"invalid catalog path: {catalog_path!r} must be under content/ or code/")
+
+    project_root = PROJECT_ROOT.resolve()
+    source = (project_root / catalog_path).resolve()
+    allowed_root = (project_root / path_parts[0]).resolve()
+    try:
+        allowed_root.relative_to(project_root)
+        source.relative_to(allowed_root)
+    except ValueError as error:
+        raise ValueError(
+            f"invalid catalog path: {catalog_path!r} resolves outside {path_parts[0]}/"
+        ) from error
+    return source
+
+
 def read_catalog() -> list[dict]:
     catalog = json.loads((SITE_ROOT / "catalog.json").read_text(encoding="utf-8"))
     ids = [entry["id"] for entry in catalog]
     if len(ids) != len(set(ids)):
         raise ValueError("catalog IDs must be unique")
 
-    for entry in catalog:
-        source = PROJECT_ROOT / entry["path"]
+    sources = [validate_catalog_path(entry.get("path")) for entry in catalog]
+    for entry, source in zip(catalog, sources, strict=True):
         if not source.is_file():
             raise FileNotFoundError(f"catalog source does not exist: {entry['path']}")
         entry.setdefault("kind", source.suffix.removeprefix(".") or "text")
@@ -324,12 +367,12 @@ def build() -> None:
 <body>
   <header class="topbar">
     <a class="brand" href="index.html"><span class="brand-mark">IP</span><span>Interview Prep Library</span></a>
-    <span class="private-pill">Private study hub</span>
+    <a class="repository-pill" href="https://github.com/">Public repository</a>
   </header>
   <main class="home-wrap">
     <section class="hero">
       <div class="hero-copy">
-        <p class="kicker">Saurabh’s working library</p>
+        <p class="kicker">Curated practice library</p>
         <h1>Find the right rehearsal<br><em>before the clock starts.</em></h1>
         <p class="hero-sub">A single index for system design, coding patterns, company question signals, core Java concepts and verified solutions.</p>
       </div>
@@ -341,7 +384,7 @@ def build() -> None:
       <div class="card-grid" id="cards">{''.join(cards)}</div>
       <p id="empty" class="empty" hidden>No matching material. Try a company, topic or pattern.</p>
     </section>
-    <aside class="privacy-note"><span class="note-icon">✓</span><p><strong>Curated by design.</strong> This hub includes preparation material and code, not recruiter correspondence, calendar details or meeting transcripts. Keep the GitHub Pages visibility private if your account plan supports it.</p></aside>
+    <aside class="privacy-note"><span class="note-icon">✓</span><p><strong>Curated by design.</strong> This public hub contains reusable preparation material and code while excluding private correspondence, calendar details and meeting transcripts.</p></aside>
   </main>
   <footer class="footer"><span>Curated interview practice · no leaked or confidential material</span><a href="#library-title">Back to library</a></footer>
   <script>window.INTERVIEW_CATALOG = {catalog_json};</script>

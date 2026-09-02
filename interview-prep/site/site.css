@@ -61,7 +61,7 @@ a { color: inherit; }
 
 .back-link { color: var(--muted); font-size: 14px; }
 .back-link:hover, .footer a:hover, .source-link:hover { color: var(--accent-dark); }
-.private-pill { color: var(--accent-dark); background: var(--accent-soft); border-radius: 100px; padding: 5px 11px; font-size: 12px; font-weight: 700; }
+.repository-pill { color: var(--accent-dark); background: var(--accent-soft); border-radius: 100px; padding: 5px 11px; font-size: 12px; font-weight: 700; text-decoration: none; }
 
 .home-wrap, .article-wrap { width: min(1160px, calc(100% - 44px)); margin: 0 auto; }
 
@@ -193,7 +193,7 @@ a { color: inherit; }
 @media (max-width: 560px) {
   .topbar { height: 62px; padding: 0 18px; }
   .brand span:last-child { font-size: 13px; }
-  .private-pill { display: none; }
+  .repository-pill { display: none; }
   .home-wrap, .article-wrap, .footer { width: min(100% - 32px, 1160px); }
   .hero { min-height: 0; padding: 57px 0 48px; }
   .hero h1 { font-size: 41px; }
