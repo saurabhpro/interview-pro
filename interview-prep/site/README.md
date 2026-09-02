@@ -1,5 +1,17 @@
-# Interview Prep Library
+# Interview Prep Library site
 
-This is the source for the searchable GitHub Pages study hub. The site is intentionally curated: it includes reusable preparation decks and code solutions, while leaving recruiter correspondence, calendar details and meeting transcripts out of the published catalogue.
+This directory contains the static-site builder for the standalone `interview-pro` study hub. It publishes reusable preparation decks and code solutions while keeping recruiter correspondence, calendar details and meeting transcripts out of the catalogue.
 
-To add a material, add one entry to `catalog.json` with a stable `id`, the repository-relative `path`, a `section`, a short `description` and a few searchable `tags`. The GitHub Actions workflow rebuilds the site whenever the default branch changes.
+From the repository root, build the site with:
+
+```bash
+python3 interview-prep/site/build.py
+```
+
+The generated files are written to `_site/`. Validate their local links with:
+
+```bash
+python3 scripts/check-links.py _site
+```
+
+To add material, add an entry to `catalog.json` with a stable `id`, a path relative to the repository root, a `section`, a short `description`, and searchable `tags`.

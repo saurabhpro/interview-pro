@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import html
 import json
-import os
 import re
 import shutil
 from pathlib import Path
@@ -13,9 +12,11 @@ from urllib.parse import urlparse
 
 
 SITE_ROOT = Path(__file__).resolve().parent
-REPO_ROOT = SITE_ROOT.parents[1]
-OUTPUT_ROOT = Path(os.environ.get("SITE_OUTPUT", REPO_ROOT / "_site"))
-GITHUB_SOURCE_ROOT = "https://github.com/saurabhpro/Interview-Programs/blob/master/"
+# This builder lives at interview-prep/site/build.py inside this standalone
+# repository. Keep every input and output rooted here rather than in the
+# repository from which the site was originally copied.
+PROJECT_ROOT = SITE_ROOT.parents[1]
+OUTPUT_ROOT = PROJECT_ROOT / "_site"
 
 
 def read_catalog() -> list[dict]:
@@ -25,7 +26,7 @@ def read_catalog() -> list[dict]:
         raise ValueError("catalog IDs must be unique")
 
     for entry in catalog:
-        source = REPO_ROOT / entry["path"]
+        source = PROJECT_ROOT / entry["path"]
         if not source.is_file():
             raise FileNotFoundError(f"catalog source does not exist: {entry['path']}")
         entry.setdefault("kind", source.suffix.removeprefix(".") or "text")
@@ -44,9 +45,9 @@ def safe_href(href: str, source_path: str, path_to_id: dict[str, str]) -> str:
     if parsed.scheme or href.lower().startswith("javascript:"):
         return "#"
 
-    target = (REPO_ROOT / Path(source_path).parent / href.split("#", 1)[0]).resolve()
+    target = (PROJECT_ROOT / Path(source_path).parent / href.split("#", 1)[0]).resolve()
     try:
-        relative = target.relative_to(REPO_ROOT).as_posix()
+        relative = target.relative_to(PROJECT_ROOT).as_posix()
     except ValueError:
         return "#"
 
@@ -54,8 +55,8 @@ def safe_href(href: str, source_path: str, path_to_id: dict[str, str]) -> str:
     if "#" in href:
         fragment = "#" + href.split("#", 1)[1]
     if relative in path_to_id:
-        return f"../pages/{path_to_id[relative]}.html{fragment}"
-    return GITHUB_SOURCE_ROOT + relative + fragment
+        return f"{path_to_id[relative]}.html{fragment}"
+    return "#"
 
 
 def render_inline(text: str, source_path: str, path_to_id: dict[str, str]) -> str:
@@ -210,9 +211,8 @@ def render_html_source(content: str) -> str:
     return inner.strip()
 
 
-def page_shell(title: str, body: str, source_path: str, catalog_entry: dict) -> str:
+def page_shell(title: str, body: str, catalog_entry: dict) -> str:
     tags = "".join(f'<span class="tag">{html.escape(tag)}</span>' for tag in catalog_entry["tags"])
-    source_url = GITHUB_SOURCE_ROOT + source_path
     return f'''<!doctype html>
 <html lang="en">
 <head>
@@ -220,21 +220,20 @@ def page_shell(title: str, body: str, source_path: str, catalog_entry: dict) -> 
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="{html.escape(catalog_entry["description"], quote=True)}">
   <title>{html.escape(title)} · Interview Prep Library</title>
-  <link rel="stylesheet" href="../assets/site.css">
+  <link rel="stylesheet" href="assets/site.css">
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="../index.html"><span class="brand-mark">IP</span><span>Interview Prep Library</span></a>
-    <a class="back-link" href="../index.html">← All materials</a>
+    <a class="brand" href="index.html"><span class="brand-mark">IP</span><span>Interview Prep Library</span></a>
+    <a class="back-link" href="index.html">← All materials</a>
   </header>
   <main class="article-wrap">
     <div class="article-meta"><span>{html.escape(catalog_entry["section"])}</span><span class="dot">•</span>{tags}</div>
     <h1 class="article-title">{html.escape(title)}</h1>
     <p class="article-dek">{html.escape(catalog_entry["description"])}</p>
-    <div class="article-actions"><a class="source-link" href="{html.escape(source_url, quote=True)}">Open source file on GitHub ↗</a></div>
     <article class="prose">{body}</article>
   </main>
-  <footer class="footer"><span>Curated interview practice · no leaked or confidential material</span><a href="../index.html">Back to library</a></footer>
+  <footer class="footer"><span>Curated interview practice · no leaked or confidential material</span><a href="index.html">Back to library</a></footer>
 </body>
 </html>'''
 
@@ -244,13 +243,13 @@ def build() -> None:
     path_to_id = {entry["path"]: entry["id"] for entry in catalog}
     if OUTPUT_ROOT.exists():
         shutil.rmtree(OUTPUT_ROOT)
-    (OUTPUT_ROOT / "pages").mkdir(parents=True)
+    OUTPUT_ROOT.mkdir(parents=True)
     (OUTPUT_ROOT / "assets").mkdir(parents=True)
 
     cards: list[str] = []
     for entry in catalog:
         source_path = entry["path"]
-        source = REPO_ROOT / source_path
+        source = PROJECT_ROOT / source_path
         raw = source.read_text(encoding="utf-8")
         if entry["kind"] == "html":
             body = render_html_source(raw)
@@ -258,13 +257,13 @@ def build() -> None:
             body = f"<pre><code>{html.escape(raw, quote=False)}</code></pre>"
         else:
             body = render_markdown(raw, source_path, path_to_id)
-        (OUTPUT_ROOT / "pages" / f'{entry["id"]}.html').write_text(
-            page_shell(entry["title"], body, source_path, entry), encoding="utf-8"
+        (OUTPUT_ROOT / f'{entry["id"]}.html').write_text(
+            page_shell(entry["title"], body, entry), encoding="utf-8"
         )
         searchable = " ".join([entry["title"], entry["section"], *entry["tags"], entry["description"]]).lower()
         tags = "".join(f'<span class="tag">{html.escape(tag)}</span>' for tag in entry["tags"][:3])
         cards.append(
-            f'''<a class="card" href="pages/{entry["id"]}.html" data-section="{html.escape(entry["section"])}" data-search="{html.escape(searchable, quote=True)}">
+            f'''<a class="card" href="{entry["id"]}.html" data-section="{html.escape(entry["section"])}" data-search="{html.escape(searchable, quote=True)}">
   <div class="card-top"><span class="eyebrow">{html.escape(entry["section"])}</span><span class="arrow">↗</span></div>
   <h2>{html.escape(entry["title"])}</h2>
   <p>{html.escape(entry["description"])}</p>
@@ -309,7 +308,7 @@ def build() -> None:
     </section>
     <aside class="privacy-note"><span class="note-icon">✓</span><p><strong>Curated by design.</strong> This hub includes preparation material and code, not recruiter correspondence, calendar details or meeting transcripts. Keep the GitHub Pages visibility private if your account plan supports it.</p></aside>
   </main>
-  <footer class="footer"><span>Curated interview practice · no leaked or confidential material</span><a href="https://github.com/saurabhpro/Interview-Programs">Repository ↗</a></footer>
+  <footer class="footer"><span>Curated interview practice · no leaked or confidential material</span><a href="#library-title">Back to library</a></footer>
   <script>window.INTERVIEW_CATALOG = {catalog_json};</script>
   <script src="assets/app.js"></script>
 </body>
