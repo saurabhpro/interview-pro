@@ -17,6 +17,26 @@ SITE_ROOT = Path(__file__).resolve().parent
 # repository from which the site was originally copied.
 PROJECT_ROOT = SITE_ROOT.parents[1]
 OUTPUT_ROOT = PROJECT_ROOT / "_site"
+PRIVATE_HOSTS = {"mail.google.com", "calendar.google.com"}
+
+
+def is_private_source_url(href: str) -> bool:
+    """Return whether a URL could expose private correspondence or notes."""
+
+    parsed = urlparse(href)
+    host = (parsed.hostname or "").lower().rstrip(".")
+    path = parsed.path.lower()
+    return (
+        parsed.scheme.lower() == "mailto"
+        or host in PRIVATE_HOSTS
+        or host.endswith(".granola.ai")
+        or host == "granola.ai"
+        or (host in {"linkedin.com", "www.linkedin.com"} and path.startswith("/messaging"))
+    )
+
+
+def safe_external_href(href: str) -> str:
+    return "#" if is_private_source_url(href) else href
 
 
 def read_catalog() -> list[dict]:
@@ -39,7 +59,7 @@ def safe_href(href: str, source_path: str, path_to_id: dict[str, str]) -> str:
     href = href.strip()
     parsed = urlparse(href)
     if parsed.scheme in {"http", "https", "mailto"}:
-        return href
+        return safe_external_href(href)
     if href.startswith("#"):
         return href
     if parsed.scheme or href.lower().startswith("javascript:"):
@@ -208,6 +228,12 @@ def render_html_source(content: str) -> str:
     inner = body.group(1)
     inner = re.sub(r"<script\b[^>]*>.*?</script>", "", inner, flags=re.IGNORECASE | re.DOTALL)
     inner = re.sub(r"<link\b[^>]*>", "", inner, flags=re.IGNORECASE)
+    inner = re.sub(
+        r"\b(href|src)\s*=\s*(['\"])(.*?)\2",
+        lambda match: f'{match.group(1)}={match.group(2)}{html.escape(safe_external_href(html.unescape(match.group(3))), quote=True)}{match.group(2)}',
+        inner,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
     return inner.strip()
 
 

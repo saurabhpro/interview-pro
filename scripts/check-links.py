@@ -30,6 +30,8 @@ def check_link(site_root: Path, html_file: Path, href: str) -> str | None:
     path = unquote(parsed.path)
     if path.startswith("/") or path.startswith("\\"):
         return "uses an absolute path"
+    if ".." in path.replace("\\", "/").split("/"):
+        return "contains a parent-path traversal segment"
 
     target = (html_file.parent / path).resolve()
     try:
