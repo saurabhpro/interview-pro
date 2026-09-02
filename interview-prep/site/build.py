@@ -172,10 +172,45 @@ def is_table_separator(line: str) -> bool:
     return bool(cells) and all(re.fullmatch(r":?-{3,}:?", cell) for cell in cells)
 
 
+def heading_slug(value: str) -> str:
+    """Create a predictable URL fragment from visible heading text."""
+
+    value = re.sub(r"`([^`]+)`", r"\1", value)
+    value = html.unescape(re.sub(r"<[^>]+>", "", value))
+    value = re.sub(r"[*_~]+", "", value).lower()
+    return re.sub(r"[^a-z0-9]+", "-", value).strip("-") or "section"
+
+
+def unique_heading_slug(value: str, used: set[str]) -> str:
+    base = heading_slug(value)
+    candidate = base
+    suffix = 2
+    while candidate in used:
+        candidate = f"{base}-{suffix}"
+        suffix += 1
+    used.add(candidate)
+    return candidate
+
+
+def heading_anchor(anchor: str, label: str) -> str:
+    accessible_label = html.escape(label, quote=True)
+    return (
+        f'<a class="heading-anchor" href="#{html.escape(anchor, quote=True)}" '
+        f'aria-label="Link to {accessible_label}">#</a>'
+    )
+
+
+def render_heading(level: int, source_text: str, rendered_text: str, used: set[str]) -> str:
+    anchor = unique_heading_slug(source_text, used)
+    label = re.sub(r"<[^>]+>", "", html.unescape(source_text)).strip()
+    return f'<h{level} id="{html.escape(anchor, quote=True)}">{rendered_text}{heading_anchor(anchor, label)}</h{level}>'
+
+
 def render_markdown(markdown: str, source_path: str, path_to_id: dict[str, str]) -> str:
     lines = markdown.replace("\r\n", "\n").split("\n")
     output: list[str] = []
     index = 0
+    heading_ids: set[str] = set()
 
     while index < len(lines):
         line = lines[index]
@@ -210,8 +245,7 @@ def render_markdown(markdown: str, source_path: str, path_to_id: dict[str, str])
         if heading:
             level = len(heading.group(1))
             text = render_inline(heading.group(2), source_path, path_to_id)
-            anchor = re.sub(r"[^a-z0-9]+", "-", re.sub(r"<[^>]+>", "", heading.group(2).lower())).strip("-")
-            output.append(f'<h{level} id="{anchor}">{text}</h{level}>')
+            output.append(render_heading(level, heading.group(2), text, heading_ids))
             index += 1
             continue
 
@@ -308,6 +342,29 @@ def render_html_source(content: str) -> str:
         inner,
         flags=re.IGNORECASE | re.DOTALL,
     )
+
+    heading_ids: set[str] = set()
+
+    def add_html_heading_anchor(match: re.Match[str]) -> str:
+        level, attributes, heading_body = match.group(1), match.group(2) or "", match.group(3)
+        id_match = re.search(r"\bid\s*=\s*(['\"])(.*?)\1", attributes, flags=re.IGNORECASE | re.DOTALL)
+        if id_match:
+            anchor = html.unescape(id_match.group(2))
+            heading_ids.add(anchor)
+        else:
+            anchor = unique_heading_slug(re.sub(r"<[^>]+>", "", heading_body), heading_ids)
+            attributes = f'{attributes} id="{html.escape(anchor, quote=True)}"'
+        if re.search(r'class\s*=\s*["\'][^"\']*heading-anchor', heading_body, flags=re.IGNORECASE):
+            return match.group(0)
+        label = re.sub(r"<[^>]+>", "", html.unescape(heading_body)).strip()
+        return f'<h{level}{attributes}>{heading_anchor(anchor, label)}{heading_body}</h{level}>'
+
+    inner = re.sub(
+        r"<h([1-6])(\s[^>]*)?>(.*?)</h\1>",
+        add_html_heading_anchor,
+        inner,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
     return inner.strip()
 
 
@@ -331,12 +388,23 @@ def page_shell(title: str, body: str, catalog_entry: dict, asset_version: str = 
     tags = "".join(f'<span class="tag">{html.escape(tag)}</span>' for tag in catalog_entry["tags"])
     asset_suffix = f"?v={html.escape(asset_version, quote=True)}" if asset_version else ""
     mermaid_renderer = ""
-    if 'class="mermaid"' in body:
+    if re.search(r'class\s*=\s*["\'][^"\']*\bmermaid\b', body, flags=re.IGNORECASE):
         mermaid_renderer = '''
   <script type="module">
     import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.0/dist/mermaid.esm.min.mjs";
     mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: "neutral" });
-    mermaid.run({ querySelector: ".mermaid" });
+    (async () => {
+      const diagrams = [...document.querySelectorAll(".mermaid")];
+      for (const diagram of diagrams) {
+        try {
+          await mermaid.run({ nodes: [diagram] });
+        } catch (error) {
+          diagram.classList.add("mermaid-error");
+          diagram.setAttribute("data-mermaid-error", "true");
+          console.error("Mermaid diagram failed to render", error);
+        }
+      }
+    })();
   </script>'''
     syntax_highlighter = ""
     if re.search(r"<pre\b[^>]*>\s*<code\b", body, flags=re.IGNORECASE):

@@ -130,7 +130,50 @@ class MermaidRenderingTests(unittest.TestCase):
         rendered = build.page_shell("Diagram", '<pre class="mermaid">flowchart LR</pre>', entry)
 
         self.assertIn("mermaid.esm.min.mjs", rendered)
-        self.assertIn('mermaid.run({ querySelector: ".mermaid" })', rendered)
+        self.assertIn("for (const diagram of diagrams)", rendered)
+        self.assertIn("await mermaid.run({ nodes: [diagram] })", rendered)
+
+    def test_mermaid_renderer_detects_single_quoted_class_attributes(self) -> None:
+        build = load_build_module()
+        entry = {
+            "title": "Diagram",
+            "description": "A diagram",
+            "section": "System design",
+            "tags": ["diagram"],
+        }
+
+        rendered = build.page_shell("Diagram", "<pre class='mermaid'>flowchart LR</pre>", entry)
+
+        self.assertIn("mermaid.esm.min.mjs", rendered)
+
+
+class HeadingAnchorTests(unittest.TestCase):
+    def test_markdown_headings_have_stable_fragment_links(self) -> None:
+        build = load_build_module()
+
+        rendered = build.render_markdown(
+            "# System context\n\n## 5. System context\n\n### System context",
+            "content/diagram.md",
+            {},
+        )
+
+        self.assertIn('id="system-context"', rendered)
+        self.assertIn('href="#system-context"', rendered)
+        self.assertIn('id="5-system-context"', rendered)
+        self.assertIn('href="#5-system-context"', rendered)
+        self.assertIn('id="system-context-2"', rendered)
+
+    def test_raw_html_headings_get_ids_without_losing_existing_ids(self) -> None:
+        build = load_build_module()
+
+        rendered = build.render_html_source(
+            '<html><body><h2>5. System context</h2><h3 id="already-there">Existing</h3></body></html>'
+        )
+
+        self.assertIn('<h2 id="5-system-context">', rendered)
+        self.assertIn('href="#5-system-context"', rendered)
+        self.assertIn('<h3 id="already-there">', rendered)
+        self.assertIn('href="#already-there"', rendered)
 
 
 class SiteInteractionTests(unittest.TestCase):

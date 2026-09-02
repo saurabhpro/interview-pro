@@ -166,6 +166,8 @@ a { color: inherit; }
 .prose h1 { margin-top: 45px; font-size: 33px; letter-spacing: -.045em; line-height: 1.12; }
 .prose h2 { margin-top: 43px; font-size: 26px; letter-spacing: -.04em; line-height: 1.2; }
 .prose h3 { margin-top: 30px; font-size: 19px; letter-spacing: -.025em; }
+.heading-anchor { margin-left: .38em; color: var(--quiet); font-size: .68em; font-weight: 650; text-decoration: none !important; opacity: .55; transition: color .15s ease, opacity .15s ease; }
+.heading-anchor:hover, .heading-anchor:focus-visible { color: var(--accent-dark); opacity: 1; }
 .prose p { margin: 15px 0; }
 .prose a { color: var(--accent-dark); text-decoration: underline; text-decoration-color: #bdc4fa; text-underline-offset: 3px; }
 .prose ul, .prose ol { padding-left: 24px; }
@@ -176,6 +178,7 @@ a { color: inherit; }
 .prose pre code { padding: 0; background: transparent; color: inherit; font-size: inherit; }
 .prose pre.mermaid { padding: 20px; background: var(--surface); color: var(--ink); }
 .prose pre.mermaid svg { max-width: 100%; height: auto; }
+.prose pre.mermaid-error { border-color: #f0b7b7; background: #fff7f7; color: #752c2c; }
 .table-wrap { overflow: auto; margin: 22px 0; }
 .prose table { width: 100%; min-width: 540px; border-collapse: collapse; font-size: 13px; }
 .prose th, .prose td { padding: 10px 12px; border: 1px solid var(--line); text-align: left; vertical-align: top; }

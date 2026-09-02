@@ -32,6 +32,14 @@
     "description": "A burst-safe Wise stock-sale rehearsal with durable admission, parallel inventory lots, asynchronous payment and reconciliation."
   },
   {
+    "id": "plum-stop-order-flow",
+    "title": "Plum stop-order flow: trigger-driven execution",
+    "path": "content/company/plum-stop-order-flow.md",
+    "section": "System design",
+    "tags": ["plum", "trading", "event-driven", "reliability"],
+    "description": "A structured stop-order design with precise trigger semantics, a derived TreeMap index, asynchronous venue execution, funds reservation and reconciliation."
+  },
+  {
     "id": "scalable-transfer-settlement",
     "title": "Scalable transfer settlement",
     "path": "content/company/scalable-transfer-settlement.md",
