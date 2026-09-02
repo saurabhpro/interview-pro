@@ -134,7 +134,7 @@ Flush policy: **first event fires immediately, then coalesce.** A normal user's 
 
 Could I instead accept bounded sub-window loss for engagement categories? Yes, and I'd argue it if replay were expensive — but it isn't, because the log is the source of truth and window state is disposable cache. So I don't need the concession, and security-tier events never touch this lane anyway.
 
-> **[COACH — this is the answer that was scored in red.]** The real-run version was "the state is not persisted, the number is symbolic." Drill this until "gap or duplicate — duplicates, dedup at the store" is a reflex you say **before** the interviewer asks. Notice the shape: choose a side, name the mechanism, name the fallback you considered and why you didn't need it.
+> **[COACH]** A complete answer must choose the tolerated failure mode and connect it to a recovery mechanism. Drill “gap or duplicate — duplicates, dedup at the store” until it is a reflex stated **before** prompting. Notice the shape: choose a side, name the mechanism, name the fallback considered, and explain why it is unnecessary here.
 
 **INTERVIEWER:** Same push arrives twice, thirty seconds apart. Where was it born and what stops it?
 
@@ -154,7 +154,7 @@ Now the inverse — the **gap**: ledger says nothing, APNs send silently failed,
 
 If you ask me "have you tested the crash-mid-window recovery path" — honest answer today: no. It's designed, not validated. The validation is a chaos drill that kills an aggregation shard mid-window and asserts two things: zero user-visible loss, zero duplicate artifacts. That drill runs before launch, not after the first incident.
 
-> **[COACH]** Rule 5 of your own exercise: don't conflate "how it would work" with "have you verified it." The staff move is to **make the designed/validated distinction yourself** before the interviewer forces it, and to name the specific test.
+> **[COACH]** Do not conflate “how it would work” with “it has been verified.” Make the designed-versus-validated distinction explicitly and name the specific test that would supply evidence.
 
 **INTERVIEWER:** Hot partition. The celebrity again.
 
@@ -200,4 +200,4 @@ Open risks, in the order I'd attack them: the send-ledger race under APNs thrott
 2. **The 60-second derivation:** the "2M in / 350K out → aggregation is load-bearing" monologue, timed. This beat *is* the interview.
 3. **Answer length discipline:** every deep-dive answer 45–90 seconds. Set a floor, not just a ceiling: a pressed answer must contain a mechanism **and** a cost **and** a failure mode before you stop talking.
 4. **The reflex pair:** for any stateful component you ever name, immediately answer: where does state live → what happens on crash mid-operation → gap or duplicate, which did I choose. Run this on five unfamiliar systems this week: URL shortener, ticket booking, chat fan-out, web crawler, ad-click counting.
-5. **Read-back protection:** whenever you concede or correct a requirement mid-interview (like the TTL/security fix), *write it in a corner of the board*. Your point-3 flip ("security is always windowed") happened because the concession lived in speech, not on the board.
+5. **Read-back protection:** whenever a requirement is corrected mid-interview (such as the TTL/security rule), *write it in a corner of the board*. Capturing the decision prevents the design from later drifting back to the superseded assumption.

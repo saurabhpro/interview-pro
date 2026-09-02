@@ -577,7 +577,7 @@ One logical writer is not magic. Its measured decision rate must exceed arrivals
 projected reservation delay = pending reservation count / measured decisions per second
 ```
 
-Alert before the projected delay threatens the configured completion completion objective.
+Alert before the projected delay threatens the configured completion objective.
 
 Load-test:
 
@@ -590,7 +590,7 @@ Load-test:
 
 ### If one transaction per order is too slow
 
-Use a small persistence microbatch, not a configured completion business clearing batch:
+Use a small persistence microbatch, not a business-scale clearing batch:
 
 1. Under the current allocator epoch, claim a bounded ordered slice with `FOR UPDATE SKIP LOCKED`, for example up to 100 pending/waiting orders or 20 ms of arrivals.
 2. Re-check that every claimed order remains `PENDING_RESERVATION` or `WAITING_INVENTORY`, has not reached its deadline, and lock orders in deterministic sequence.
