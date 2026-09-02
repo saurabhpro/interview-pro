@@ -197,6 +197,14 @@ assert.equal(cards[1].classList.values.has('is-filtered-out'), true);
         self.assertIn("github-dark.min.css", rendered)
         self.assertIn("highlightAll", rendered)
 
+    def test_article_shell_cache_busts_local_assets(self) -> None:
+        build = load_build_module()
+        build.build()
+        rendered = (REPOSITORY_ROOT / "_site" / "index.html").read_text(encoding="utf-8")
+
+        self.assertRegex(rendered, r'href="assets/site\.css\?v=[0-9a-f]{12}"')
+        self.assertRegex(rendered, r'src="assets/app\.js\?v=[0-9a-f]{12}"')
+
     def test_raw_html_pre_is_wrapped_as_a_code_block(self) -> None:
         build = load_build_module()
 

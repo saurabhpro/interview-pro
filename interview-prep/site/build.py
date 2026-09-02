@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import re
@@ -326,8 +327,9 @@ def render_code_source(content: str, source_path: str) -> str:
     return f'<pre><code class="language-{language}">{escaped}</code></pre>'
 
 
-def page_shell(title: str, body: str, catalog_entry: dict) -> str:
+def page_shell(title: str, body: str, catalog_entry: dict, asset_version: str = "") -> str:
     tags = "".join(f'<span class="tag">{html.escape(tag)}</span>' for tag in catalog_entry["tags"])
+    asset_suffix = f"?v={html.escape(asset_version, quote=True)}" if asset_version else ""
     mermaid_renderer = ""
     if 'class="mermaid"' in body:
         mermaid_renderer = '''
@@ -351,7 +353,7 @@ def page_shell(title: str, body: str, catalog_entry: dict) -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="{html.escape(catalog_entry["description"], quote=True)}">
   <title>{html.escape(title)} · Interview Prep Library</title>
-  <link rel="stylesheet" href="assets/site.css">
+  <link rel="stylesheet" href="assets/site.css{asset_suffix}">
   {syntax_highlighter}
 </head>
 <body>
@@ -374,6 +376,9 @@ def page_shell(title: str, body: str, catalog_entry: dict) -> str:
 def build() -> None:
     catalog = read_catalog()
     path_to_id = {entry["path"]: entry["id"] for entry in catalog}
+    asset_version = hashlib.sha256(
+        (SITE_ROOT / "site.css").read_bytes() + b"\0" + (SITE_ROOT / "app.js").read_bytes()
+    ).hexdigest()[:12]
     if OUTPUT_ROOT.exists():
         shutil.rmtree(OUTPUT_ROOT)
     OUTPUT_ROOT.mkdir(parents=True)
@@ -391,7 +396,7 @@ def build() -> None:
         else:
             body = render_markdown(raw, source_path, path_to_id)
         (OUTPUT_ROOT / f'{entry["id"]}.html').write_text(
-            page_shell(entry["title"], body, entry), encoding="utf-8"
+            page_shell(entry["title"], body, entry, asset_version=asset_version), encoding="utf-8"
         )
         searchable = " ".join([entry["title"], entry["section"], *entry["tags"], entry["description"]]).lower()
         tags = "".join(f'<span class="tag">{html.escape(tag)}</span>' for tag in entry["tags"][:3])
@@ -417,7 +422,7 @@ def build() -> None:
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="A searchable, curated library of system design, coding and Java interview preparation.">
   <title>Interview Prep Library</title>
-  <link rel="stylesheet" href="assets/site.css">
+  <link rel="stylesheet" href="assets/site.css?v={asset_version}">
 </head>
 <body>
   <header class="topbar">
@@ -443,7 +448,7 @@ def build() -> None:
   </main>
   <footer class="footer"><span>Curated interview practice · no leaked or confidential material</span><a href="#library-title">Back to library</a></footer>
   <script>window.INTERVIEW_CATALOG = {catalog_json};</script>
-  <script src="assets/app.js"></script>
+  <script src="assets/app.js?v={asset_version}"></script>
 </body>
 </html>'''
     (OUTPUT_ROOT / "index.html").write_text(index, encoding="utf-8")
