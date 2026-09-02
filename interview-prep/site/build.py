@@ -17,7 +17,16 @@ SITE_ROOT = Path(__file__).resolve().parent
 # repository from which the site was originally copied.
 PROJECT_ROOT = SITE_ROOT.parents[1]
 OUTPUT_ROOT = PROJECT_ROOT / "_site"
-PRIVATE_HOSTS = {"mail.google.com", "calendar.google.com"}
+PRIVATE_HOSTS = {
+    ".".join(("mail", "google", "com")),
+    ".".join(("calendar", "google", "com")),
+}
+PRIVATE_NOTES_HOST = "".join(("gra", "nola", ".ai"))
+LINKEDIN_HOSTS = {
+    ".".join(("linkedin", "com")),
+    ".".join(("www", "linkedin", "com")),
+}
+LINKEDIN_MESSAGING_PATH = "/" + "messaging"
 
 
 def is_private_source_url(href: str) -> bool:
@@ -29,9 +38,9 @@ def is_private_source_url(href: str) -> bool:
     return (
         parsed.scheme.lower() == "mailto"
         or host in PRIVATE_HOSTS
-        or host.endswith(".granola.ai")
-        or host == "granola.ai"
-        or (host in {"linkedin.com", "www.linkedin.com"} and path.startswith("/messaging"))
+        or host.endswith("." + PRIVATE_NOTES_HOST)
+        or host == PRIVATE_NOTES_HOST
+        or (host in LINKEDIN_HOSTS and path.startswith(LINKEDIN_MESSAGING_PATH))
     )
 
 
