@@ -139,6 +139,7 @@ a { color: inherit; }
   box-shadow: 0 3px 10px rgba(34, 47, 89, .015);
   transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
 }
+.card.is-filtered-out { display: none; }
 .card:hover { transform: translateY(-3px); border-color: #cbd1ff; box-shadow: var(--shadow); }
 .card-top { display: flex; justify-content: space-between; align-items: center; }
 .eyebrow { margin: 0; font-size: 9px; color: var(--accent); }

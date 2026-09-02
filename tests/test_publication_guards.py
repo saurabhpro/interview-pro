@@ -133,5 +133,77 @@ class MermaidRenderingTests(unittest.TestCase):
         self.assertIn("mermaid.run", rendered)
 
 
+class SiteInteractionTests(unittest.TestCase):
+    def test_filter_click_hides_cards_outside_selected_lane(self) -> None:
+        script = (REPOSITORY_ROOT / "interview-prep" / "site" / "app.js").read_text(encoding="utf-8")
+        harness = f"""
+const assert = require('node:assert/strict');
+const vm = require('node:vm');
+
+class ClassList {{
+  constructor() {{ this.values = new Set(); }}
+  toggle(value, enabled) {{
+    if (enabled) this.values.add(value); else this.values.delete(value);
+  }}
+}}
+
+class Element {{
+  constructor(section, filter) {{
+    this.dataset = {{ section, filter, search: section.toLowerCase() }};
+    this.hidden = false;
+    this.classList = new ClassList();
+    this.listeners = {{}};
+    this.value = '';
+  }}
+  addEventListener(name, callback) {{ this.listeners[name] = callback; }}
+  setAttribute() {{}}
+}}
+
+const search = new Element('', '');
+const cards = [new Element('System design', ''), new Element('Core concepts', '')];
+const filters = [new Element('', 'all'), new Element('', 'System design')];
+const document = {{
+  activeElement: null,
+  querySelector(selector) {{ return selector === '#search' ? search : null; }},
+  querySelectorAll(selector) {{
+    if (selector === '.card') return cards;
+    if (selector === '.filter') return filters;
+    return [];
+  }},
+  addEventListener() {{}}
+}};
+
+vm.runInNewContext({json.dumps(script)}, {{ document }});
+filters[1].listeners.click();
+assert.equal(cards[0].hidden, false);
+assert.equal(cards[1].hidden, true);
+assert.equal(cards[1].classList.values.has('is-filtered-out'), true);
+"""
+        result = subprocess.run(["node", "-e", harness], check=False, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
+    def test_article_shell_loads_syntax_highlighter_for_code_blocks(self) -> None:
+        build = load_build_module()
+        entry = {
+            "title": "Code",
+            "description": "A code sample",
+            "section": "Code solutions",
+            "tags": ["java"],
+        }
+
+        rendered = build.page_shell("Code", '<pre><code class="language-java">class Demo {}</code></pre>', entry)
+
+        self.assertIn("highlight.min.js", rendered)
+        self.assertIn("github-dark.min.css", rendered)
+        self.assertIn("highlightAll", rendered)
+
+    def test_raw_html_pre_is_wrapped_as_a_code_block(self) -> None:
+        build = load_build_module()
+
+        rendered = build.render_html_source("<html><body><main><pre>queue -&gt; worker</pre></main></body></html>")
+
+        self.assertIn('<pre><code class="language-text">queue -&gt; worker</code></pre>', rendered)
+
+
 if __name__ == "__main__":
     unittest.main()

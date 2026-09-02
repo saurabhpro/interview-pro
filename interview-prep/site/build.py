@@ -293,7 +293,37 @@ def render_html_source(content: str) -> str:
         inner,
         flags=re.IGNORECASE | re.DOTALL,
     )
+
+    def wrap_plain_pre(match: re.Match[str]) -> str:
+        attributes = match.group(1) or ""
+        pre_body = match.group(2)
+        if re.search(r"<code\b", pre_body, flags=re.IGNORECASE):
+            return match.group(0)
+        return f'<pre{attributes}><code class="language-text">{pre_body}</code></pre>'
+
+    inner = re.sub(
+        r"<pre(\s[^>]*)?>(.*?)</pre>",
+        wrap_plain_pre,
+        inner,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
     return inner.strip()
+
+
+def render_code_source(content: str, source_path: str) -> str:
+    """Render a source file as a syntax-highlightable code block."""
+
+    language_by_suffix = {
+        ".java": "java",
+        ".js": "javascript",
+        ".json": "json",
+        ".py": "python",
+        ".sql": "sql",
+        ".ts": "typescript",
+    }
+    language = language_by_suffix.get(Path(source_path).suffix.lower(), "text")
+    escaped = html.escape(content, quote=False)
+    return f'<pre><code class="language-{language}">{escaped}</code></pre>'
 
 
 def page_shell(title: str, body: str, catalog_entry: dict) -> str:
@@ -306,6 +336,14 @@ def page_shell(title: str, body: str, catalog_entry: dict) -> str:
     mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: "neutral" });
     mermaid.run({ query: ".mermaid" });
   </script>'''
+    syntax_highlighter = ""
+    if re.search(r"<pre\b[^>]*>\s*<code\b", body, flags=re.IGNORECASE):
+        syntax_highlighter = '''
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/styles/github-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/highlight.min.js" defer></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => window.hljs?.highlightAll());
+  </script>'''
     return f'''<!doctype html>
 <html lang="en">
 <head>
@@ -314,6 +352,7 @@ def page_shell(title: str, body: str, catalog_entry: dict) -> str:
   <meta name="description" content="{html.escape(catalog_entry["description"], quote=True)}">
   <title>{html.escape(title)} · Interview Prep Library</title>
   <link rel="stylesheet" href="assets/site.css">
+  {syntax_highlighter}
 </head>
 <body>
   <header class="topbar">
@@ -348,7 +387,7 @@ def build() -> None:
         if entry["kind"] == "html":
             body = render_html_source(raw)
         elif entry["kind"] == "code":
-            body = f"<pre><code>{html.escape(raw, quote=False)}</code></pre>"
+            body = render_code_source(raw, source_path)
         else:
             body = render_markdown(raw, source_path, path_to_id)
         (OUTPUT_ROOT / f'{entry["id"]}.html').write_text(
