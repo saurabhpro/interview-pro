@@ -104,5 +104,34 @@ class PublicSafetyScopeTests(unittest.TestCase):
         self.assertIn("PUBLIC_UNSAFE", result.stdout)
 
 
+class MermaidRenderingTests(unittest.TestCase):
+    def test_mermaid_fence_becomes_renderable_diagram_container(self) -> None:
+        build = load_build_module()
+
+        rendered = build.render_markdown(
+            "```mermaid\nflowchart LR\n    A --> B\n```",
+            "content/diagram.md",
+            {},
+        )
+
+        self.assertIn('<pre class="mermaid">', rendered)
+        self.assertIn("flowchart LR", rendered)
+        self.assertNotIn("language-mermaid", rendered)
+
+    def test_pages_with_diagrams_load_mermaid_renderer(self) -> None:
+        build = load_build_module()
+        entry = {
+            "title": "Diagram",
+            "description": "A diagram",
+            "section": "System design",
+            "tags": ["diagram"],
+        }
+
+        rendered = build.page_shell("Diagram", '<pre class="mermaid">flowchart LR</pre>', entry)
+
+        self.assertIn("mermaid.esm.min.mjs", rendered)
+        self.assertIn("mermaid.run", rendered)
+
+
 if __name__ == "__main__":
     unittest.main()

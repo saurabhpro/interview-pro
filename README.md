@@ -6,6 +6,8 @@ Never add recruiter emails, calendar links, transcripts, daily reports, personal
 
 The study hub source lives under `content/` and `interview-prep/site/`.
 
+Mermaid diagrams are rendered in the browser from a pinned public CDN module; if the CDN is unavailable, the original diagram source remains readable.
+
 After GitHub Pages is enabled and deployment succeeds, the study hub is expected at https://saurabhpro.github.io/interview-pro/. Run `python3 scripts/check-public-safe.py .` before publishing future changes.
 
 For an additional tracked-file search, use Git's valid exclusion pathspec form: `git grep -n -I 'PATTERN' -- . ':(exclude)_site'`.

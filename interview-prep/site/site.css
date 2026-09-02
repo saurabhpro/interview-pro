@@ -173,6 +173,8 @@ a { color: inherit; }
 .prose pre { overflow: auto; margin: 21px 0; padding: 17px 19px; border: 1px solid #e1e5ef; border-radius: 11px; background: #1e2741; color: #e7ebff; font: 13px/1.65 "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
 .prose code { padding: 2px 5px; border-radius: 4px; background: #eef0f7; color: #48558c; font: 0.88em "SFMono-Regular", Consolas, monospace; }
 .prose pre code { padding: 0; background: transparent; color: inherit; font-size: inherit; }
+.prose pre.mermaid { padding: 20px; background: var(--surface); color: var(--ink); }
+.prose pre.mermaid svg { max-width: 100%; height: auto; }
 .table-wrap { overflow: auto; margin: 22px 0; }
 .prose table { width: 100%; min-width: 540px; border-collapse: collapse; font-size: 13px; }
 .prose th, .prose td { padding: 10px 12px; border: 1px solid var(--line); text-align: left; vertical-align: top; }

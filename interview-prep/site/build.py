@@ -194,6 +194,13 @@ def render_markdown(markdown: str, source_path: str, path_to_id: dict[str, str])
                 index += 1
             if index < len(lines):
                 index += 1
+            if language.lower() == "mermaid":
+                # Mermaid reads the diagram source from textContent and replaces
+                # this container with an SVG in the browser. HTML-escape the
+                # source so public content cannot become executable markup.
+                diagram = html.escape(chr(10).join(code_lines), quote=False)
+                output.append(f'<pre class="mermaid">{diagram}</pre>')
+                continue
             class_name = f' class="language-{html.escape(language, quote=True)}"' if language else ""
             output.append(f"<pre><code{class_name}>{html.escape(chr(10).join(code_lines), quote=False)}</code></pre>")
             continue
@@ -291,6 +298,14 @@ def render_html_source(content: str) -> str:
 
 def page_shell(title: str, body: str, catalog_entry: dict) -> str:
     tags = "".join(f'<span class="tag">{html.escape(tag)}</span>' for tag in catalog_entry["tags"])
+    mermaid_renderer = ""
+    if 'class="mermaid"' in body:
+        mermaid_renderer = '''
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.0/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: "neutral" });
+    mermaid.run({ query: ".mermaid" });
+  </script>'''
     return f'''<!doctype html>
 <html lang="en">
 <head>
@@ -312,6 +327,7 @@ def page_shell(title: str, body: str, catalog_entry: dict) -> str:
     <article class="prose">{body}</article>
   </main>
   <footer class="footer"><span>Curated interview practice · no leaked or confidential material</span><a href="index.html">Back to library</a></footer>
+  {mermaid_renderer}
 </body>
 </html>'''
 
