@@ -130,7 +130,7 @@ class MermaidRenderingTests(unittest.TestCase):
         rendered = build.page_shell("Diagram", '<pre class="mermaid">flowchart LR</pre>', entry)
 
         self.assertIn("mermaid.esm.min.mjs", rendered)
-        self.assertIn("mermaid.run", rendered)
+        self.assertIn('mermaid.run({ querySelector: ".mermaid" })', rendered)
 
 
 class SiteInteractionTests(unittest.TestCase):

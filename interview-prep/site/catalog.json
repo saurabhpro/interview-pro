@@ -25,11 +25,11 @@
   },
   {
     "id": "fixed-price-share-offering",
-    "title": "Fixed-price share offering",
+    "title": "Wise stock sale: burst-safe fixed-price offering",
     "path": "content/company/fixed-price-share-offering.md",
     "section": "System design",
     "tags": ["payments", "inventory", "idempotency"],
-    "description": "A correctness-first design for whole-share purchases, asynchronous payment, reservations, reconciliation and failure recovery."
+    "description": "A burst-safe Wise stock-sale rehearsal with durable admission, parallel inventory lots, asynchronous payment and reconciliation."
   },
   {
     "id": "scalable-transfer-settlement",

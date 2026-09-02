@@ -336,7 +336,7 @@ def page_shell(title: str, body: str, catalog_entry: dict, asset_version: str = 
   <script type="module">
     import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.0/dist/mermaid.esm.min.mjs";
     mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: "neutral" });
-    mermaid.run({ query: ".mermaid" });
+    mermaid.run({ querySelector: ".mermaid" });
   </script>'''
     syntax_highlighter = ""
     if re.search(r"<pre\b[^>]*>\s*<code\b", body, flags=re.IGNORECASE):
