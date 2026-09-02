@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JDK 26 HashMap and ConcurrentHashMap — interview reference</title>
+</head>
+<body>
+<main>
+  <h1>JDK 26 map architecture</h1>
+  <p class="lede">Public guarantees and present OpenJDK implementation are different claims. Lead with the contract; use internals to explain the performance.</p>
+
+  <h2>The shared hash-table core</h2>
+  <div class="card">
+    <pre>spread = h ^ (h &gt;&gt;&gt; 16)
+index  = spread &amp; (capacity - 1)       // capacity is a power of two
+
+table[0]  null
+table[1]  Node ──▶ Node                // ordinary collision chain
+table[2]  TreeBin / TreeNode           // red-black tree for a large bin
+table[3]  Node</pre>
+  </div>
+  <table>
+    <tr><th>Mechanism</th><th>Why it exists</th></tr>
+    <tr><td>Hash spreading</td><td>Moves influence from high hash bits into low bits used by the mask.</td></tr>
+    <tr><td>Power-of-two capacity</td><td>Uses a mask instead of modulo and makes resize splitting cheap.</td></tr>
+    <tr><td>List → tree at 8</td><td>Bounds pathological collision search; treeification requires table capacity ≥ 64.</td></tr>
+    <tr><td>Tree → list around 6</td><td>Avoids paying the larger tree-node cost for a small bin.</td></tr>
+  </table>
+
+  <h2><code>HashMap</code></h2>
+  <div class="card">
+    <p><strong>Read:</strong> calculate index → test first node → traverse list or tree → compare stored hash and <code>equals</code>.</p>
+    <p><strong>Write:</strong> insert in empty bin, replace matching key, or append/tree insert. Resize when size exceeds the threshold.</p>
+    <p><strong>Resize:</strong> capacity doubles. An old-bin entry either remains at index <code>j</code> or moves to <code>j + oldCapacity</code>, decided by <code>hash &amp; oldCapacity</code>.</p>
+  </div>
+  <p class="rule">No synchronization and no visibility guarantee. Fail-fast iteration is best-effort bug detection, not concurrency control.</p>
+
+  <h2><code>ConcurrentHashMap</code></h2>
+  <div class="card">
+    <pre>get(key)
+  volatile/atomic table read ──▶ list/tree traversal      // normally no lock
+
+put(key, value)
+  empty bin    ──▶ CAS new Node                           // no lock
+  occupied bin ──▶ coordinate on that bin, revalidate,
+                    then list/tree mutation               // not a map-wide lock
+  MOVED node   ──▶ follow nextTable / help resize</pre>
+  </div>
+  <table>
+    <tr><th>Internal part</th><th>Role</th></tr>
+    <tr><td><code>volatile Node[] table</code></td><td>Publishes the current table safely.</td></tr>
+    <tr><td><code>Node(hash, key, volatile val, volatile next)</code></td><td>Immutable identity plus visible value/link updates.</td></tr>
+    <tr><td><code>ForwardingNode</code></td><td>Marks a migrated old bin and points operations to the new table.</td></tr>
+    <tr><td><code>TreeBin</code></td><td>Wraps the specialised red-black tree and coordinates tree readers/writers.</td></tr>
+    <tr><td><code>ReservationNode</code></td><td>Temporary placeholder for atomic compute-style operations.</td></tr>
+    <tr><td><code>baseCount + CounterCell[]</code></td><td>Spreads count-update contention instead of creating one hot counter.</td></tr>
+  </table>
+  <p class="rule">There are no operational segments. The old <code>Segment</code> shape survives only for serialization compatibility; <code>concurrencyLevel</code> is a sizing hint.</p>
+
+  <h2>Selection and traps</h2>
+  <table>
+    <tr><th>Need</th><th>Correct choice</th></tr>
+    <tr><td>Thread-confined mutable lookup</td><td><code>HashMap</code></td></tr>
+    <tr><td>Shared concurrent per-key state</td><td><code>ConcurrentHashMap</code> with <code>putIfAbsent</code>, <code>compute</code>, <code>merge</code> or conditional <code>replace</code></td></tr>
+    <tr><td>Invariant spanning keys/processes</td><td>External lock, single owner, transaction or another authoritative store</td></tr>
+  </table>
+  <ul>
+    <li><code>get</code> then <code>put</code> is not one atomic operation.</li>
+    <li>Do not perform slow I/O inside <code>compute</code>; contending updates for that bin/key can wait.</li>
+    <li>Do not use <code>size()</code> as transactional control while concurrent updates are active.</li>
+    <li>Use immutable keys: changing fields used by <code>equals/hashCode</code> makes a mapping practically unreachable.</li>
+    <li><code>ConcurrentHashMap</code> rejects null keys and values so null can mean unambiguously “absent”.</li>
+  </ul>
+
+  <h2>Primary sources</h2>
+  <ul>
+    <li><a href="https://docs.oracle.com/en/java/javase/26/docs/api/java.base/java/util/HashMap.html">Java 26 HashMap API</a></li>
+    <li><a href="https://docs.oracle.com/en/java/javase/26/docs/api/java.base/java/util/concurrent/ConcurrentHashMap.html">Java 26 ConcurrentHashMap API</a></li>
+    <li><a href="https://github.com/openjdk/jdk26u/blob/master/src/java.base/share/classes/java/util/HashMap.java">OpenJDK 26 HashMap source</a></li>
+    <li><a href="https://github.com/openjdk/jdk26u/blob/master/src/java.base/share/classes/java/util/concurrent/ConcurrentHashMap.java">OpenJDK 26 ConcurrentHashMap source</a></li>
+  </ul>
+</main>
+</body>
+</html>

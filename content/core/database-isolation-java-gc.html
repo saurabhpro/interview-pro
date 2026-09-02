@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Reference: Database Isolation and Java GC</title></head>
+<body><main>
+<h1>Database isolation + Java GC: interview card</h1>
+<h2>Isolation</h2>
+<table>
+<thead><tr><th>Question</th><th>Short answer</th></tr></thead>
+<tbody>
+<tr><td>Dirty read?</td><td>Read another transaction's uncommitted write.</td></tr>
+<tr><td>Non-repeatable read?</td><td>Re-read the same row and see a committed change.</td></tr>
+<tr><td>Phantom?</td><td>Re-run a predicate query and see rows appear/disappear.</td></tr>
+<tr><td>Read committed?</td><td>Each statement sees committed data at its own start; later statements may see changes.</td></tr>
+<tr><td>Repeatable read?</td><td>Transaction-level stable snapshot in MVCC systems; write conflicts still matter.</td></tr>
+<tr><td>Serializable?</td><td>Equivalent to one-at-a-time execution; expect aborts and retries.</td></tr>
+<tr><td>Booking invariant?</td><td>Atomic conditional decrement + unique idempotency key + short transaction.</td></tr>
+</tbody></table>
+<h2>GC</h2>
+<table>
+<thead><tr><th>Signal</th><th>Likely question to ask</th></tr></thead>
+<tbody>
+<tr><td>High allocation rate</td><td>Which endpoint/batch allocates? Can object lifetime or batching be reduced?</td></tr>
+<tr><td>Old generation keeps growing</td><td>What reference retains objects? Inspect caches, queues, listeners, ThreadLocals.</td></tr>
+<tr><td>Long pauses, low live set</td><td>Pause cause, heap sizing, humongous objects, collector choice, CPU pressure?</td></tr>
+<tr><td>G1 vs ZGC</td><td>G1 for balanced throughput/pause goals; ZGC when very low pauses dominate and overhead is measured acceptable.</td></tr>
+</tbody></table>
+<p>Primary references: <a href="https://www.postgresql.org/docs/current/transaction-iso.html">PostgreSQL transaction isolation</a> and <a href="https://docs.oracle.com/en/java/javase/25/gctuning/available-collectors.html">Oracle Java 25 garbage collectors</a>.</p>
+</main></body></html>

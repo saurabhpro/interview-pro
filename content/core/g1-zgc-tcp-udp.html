@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>G1 vs ZGC; TCP vs UDP</title>
+</head>
+<body>
+<main>
+  <h1>Two boundaries interviewers test</h1>
+  <p class="lede">The win is not recalling four definitions. It is identifying where work, guarantees and recovery responsibility live.</p>
+
+  <h2>1. G1 vs ZGC: where does relocation happen?</h2>
+  <div class="card">
+    <p class="rule">G1 moves selected live objects during stop-the-world evacuation. ZGC relocates concurrently and makes reference access safe with barriers.</p>
+    <pre>G1: app ─────┤ STW evacuation ├───── app
+ZGC: app ──────────────────────────── app
+         concurrent mark + relocation
+              tiny coordination pauses</pre>
+  </div>
+  <table>
+    <tr><th></th><th>G1</th><th>ZGC</th></tr>
+    <tr><td>Optimises</td><td>Balanced throughput, footprint and pauses</td><td>Very low worst-pause latency</td></tr>
+    <tr><td>Movement</td><td>STW young/mixed evacuation</td><td>Concurrent relocation</td></tr>
+    <tr><td>Cost paid as</td><td>Longer pauses for copying live data</td><td>Barriers, concurrent CPU and capacity headroom</td></tr>
+    <tr><td>Choose when</td><td>General service; measured pauses fit SLO</td><td>p99/p999 cannot tolerate GC pauses</td></tr>
+  </table>
+  <p>JDK 26 defaults to G1 on server-class machines. ZGC is generational-only and enabled with <code>-XX:+UseZGC</code>. Benchmark the application rather than choosing from collector reputation.</p>
+
+  <h2>2. TCP vs UDP: transport is not the application protocol</h2>
+  <div class="card">
+    <pre>Application  REST/HTTP | FIX | WebSocket | binary feed
+Transport    TCP      | UDP | QUIC-over-UDP
+Network      IP
+Link         Ethernet / Wi-Fi</pre>
+    <p class="rule">Both TCP and UDP can be raw socket programming. REST normally means HTTP semantics, not TCP.</p>
+  </div>
+  <table>
+    <tr><th></th><th>TCP</th><th>UDP</th></tr>
+    <tr><td>Shape</td><td>Reliable ordered byte stream</td><td>Independent datagrams</td></tr>
+    <tr><td>Framing</td><td>Application adds message boundaries</td><td>Datagram boundary retained</td></tr>
+    <tr><td>Loss</td><td>Retransmit; later bytes wait</td><td>Later packets continue; app sees a gap</td></tr>
+    <tr><td>Market-data use</td><td>Recovery, sessions, orders, snapshots</td><td>High-rate multicast incrementals</td></tr>
+  </table>
+  <div class="card">
+    <p><strong>Concrete recovery:</strong> receive sequences 5001 then 5003. Mark the book stale, recover 5002 or a snapshot over a reliable channel, rebuild, then publish healthy state. UDP loss is expected; silently serving the gapped book is the defect.</p>
+  </div>
+
+  <h2>Retrieval check</h2>
+  <ol>
+    <li>Why can ZGC reduce pauses without making garbage collection free?</li>
+    <li>Why must a TCP application still define message framing?</li>
+    <li>Why might a market-data system deliberately combine UDP and TCP?</li>
+  </ol>
+
+  <h2>Primary sources</h2>
+  <ul>
+    <li><a href="https://docs.oracle.com/en/java/javase/26/gctuning/">Oracle JDK 26 GC tuning guide</a></li>
+    <li><a href="https://openjdk.org/jeps/490">OpenJDK JEP 490</a></li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc9293.html">RFC 9293 — TCP</a></li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc768.html">RFC 768 — UDP</a></li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc9114.html">RFC 9114 — HTTP/3</a></li>
+  </ul>
+  <p>Choose one boundary and push it into a concrete failure scenario.</p>
+</main>
+</body>
+</html>
