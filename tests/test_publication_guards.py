@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -174,6 +175,41 @@ class HeadingAnchorTests(unittest.TestCase):
         self.assertIn('href="#5-system-context"', rendered)
         self.assertIn('<h3 id="already-there">', rendered)
         self.assertIn('href="#already-there"', rendered)
+
+
+class JpmorganAnswerDeckTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.source = (
+            REPOSITORY_ROOT / "content" / "company" / "jpmorgan-backend-question-bank.md"
+        ).read_text(encoding="utf-8")
+
+    def section(self, number: int) -> str:
+        start = self.source.index(f"## {number}.")
+        next_heading = f"## {number + 1}."
+        end = self.source.find(next_heading, start)
+        return self.source[start:] if end == -1 else self.source[start:end]
+
+    def test_first_five_sections_answer_every_numbered_question(self) -> None:
+        expected_counts = {1: 14, 2: 10, 3: 7, 4: 11, 5: 7}
+
+        for section_number, expected_count in expected_counts.items():
+            with self.subTest(section=section_number):
+                section = self.section(section_number)
+                answers = re.findall(r"^### " + str(section_number) + r"\.\d+ .+$", section, re.MULTILINE)
+                self.assertEqual(expected_count, len(answers))
+                self.assertEqual(expected_count, section.count("**Answer.**"))
+
+    def test_every_coding_question_has_java_complexity_and_tests(self) -> None:
+        coding = self.section(1)
+
+        self.assertEqual(14, coding.count("```java"))
+        self.assertEqual(14, coding.count("**Complexity.**"))
+        self.assertEqual(14, coding.count("**Tests.**"))
+
+    def test_system_design_questions_remain_questions_only(self) -> None:
+        system_design = self.section(6)
+
+        self.assertNotIn("**Answer.**", system_design)
 
 
 class SiteInteractionTests(unittest.TestCase):
