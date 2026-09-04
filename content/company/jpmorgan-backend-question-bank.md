@@ -367,7 +367,7 @@ static boolean areAnagrams(String left, String right) {
 }
 
 static List<List<String>> groupAnagrams(List<String> words) {
-    Map<String, List<String>> groups = new LinkedHashMap<>();
+    Map<String, List<String>> groups = new HashMap<>();
     for (String word : words) {
         groups.computeIfAbsent(anagramKey(word), ignored -> new ArrayList<>()).add(word);
     }
@@ -382,7 +382,7 @@ private static String anagramKey(String value) {
 
 **Complexity.** For total input characters `C` and longest word length `L`, `O(C log L)` time and `O(C)` result/key space. A bounded-alphabet frequency key reduces time to `O(C)`.
 
-**Tests.** Empty strings; repeated letters; case/space/punctuation normalisation policy; Unicode; stable group order. Do not silently lowercase or strip characters—clarify the contract.
+**Tests.** Empty strings; repeated letters; case/space/punctuation normalisation policy; Unicode; and group membership. `HashMap` does not promise group order, so compare groups independent of order unless the contract requires deterministic output. If first-seen group order is required, use `LinkedHashMap` deliberately or sort the final groups; it is not needed for correctness.
 
 ### 1.11 Report duplicate strings and counts
 
