@@ -72,6 +72,8 @@ final class LruCache<K, V> {
 
 **Tests.** Capacity one; update without growth; `get` changes eviction order; eviction removes map and list state; null-key/value policy; invalid capacity. State explicitly that this implementation is not thread-safe.
 
+The complete standalone manager-hierarchy solution is available as [Java source](../../code/java/R2JPM.java) and [PostgreSQL queries](../../code/sql/R2JPM.sql).
+
 **Production shortcut.** If the interviewer asks for idiomatic Java rather than the internals, use `LinkedHashMap` in access-order mode:
 
 ```java

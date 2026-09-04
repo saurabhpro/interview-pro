@@ -64,6 +64,24 @@
     "description": "Evidence-informed JPMorgan coding and system-design drills covering caches, graphs, strings, arrays, DP and concurrency."
   },
   {
+    "id": "jpmorgan-r2-java",
+    "title": "JPMorgan Round 2: Java solution",
+    "path": "code/java/R2JPM.java",
+    "kind": "code",
+    "section": "Code solutions",
+    "tags": ["jpmorgan", "java", "hashmap", "hierarchy"],
+    "description": "Standalone Java solution for direct and indirect manager-report counting, plus the idiomatic LinkedHashMap LRU variant."
+  },
+  {
+    "id": "jpmorgan-r2-sql",
+    "title": "JPMorgan Round 2: SQL solution",
+    "path": "code/sql/R2JPM.sql",
+    "kind": "code",
+    "section": "Code solutions",
+    "tags": ["jpmorgan", "sql", "recursive cte", "hierarchy"],
+    "description": "PostgreSQL direct-report aggregation and recursive descendant query for the manager hierarchy problem."
+  },
+  {
     "id": "agoda-public-research",
     "title": "Agoda: live coding research",
     "path": "content/company/agoda-live-coding-research.md",
