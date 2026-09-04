@@ -70,7 +70,7 @@
     "kind": "code",
     "section": "Code solutions",
     "tags": ["jpmorgan", "java", "hashmap", "hierarchy"],
-    "description": "Standalone Java solution for direct and indirect manager-report counting, plus the idiomatic LinkedHashMap LRU variant."
+    "description": "Standalone Java solution for direct manager-report counting, with an explicit indirect-report extension."
   },
   {
     "id": "jpmorgan-r2-sql",

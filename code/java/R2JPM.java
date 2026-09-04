@@ -1,7 +1,6 @@
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -72,19 +71,4 @@ public final class R2JPM {
         return descendants.size();
     }
 
-    /** Idiomatic Java LRU variant; access-order reads update recency. */
-    public static final class LruCache<K, V> extends LinkedHashMap<K, V> {
-        private final int capacity;
-
-        public LruCache(int capacity) {
-            super(capacity, 0.75f, true);
-            if (capacity <= 0) throw new IllegalArgumentException("capacity");
-            this.capacity = capacity;
-        }
-
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
-            return size() > capacity;
-        }
-    }
 }
