@@ -386,11 +386,11 @@ private static String anagramKey(String value) {
 
 ### 1.11 Report duplicate strings and counts
 
-**Answer.** Count each value in a map, then retain counts greater than one. `LinkedHashMap` makes output deterministic by first appearance. Return structured data rather than printing from the algorithm.
+**Answer.** Count each value in a map, then retain counts greater than one. `HashMap` is sufficient when result order is irrelevant. Use `LinkedHashMap` only when the contract requires deterministic first-appearance order. Return structured data rather than printing from the algorithm.
 
 ```java
 static Map<String, Long> duplicateCounts(List<String> values) {
-    Map<String, Long> counts = new LinkedHashMap<>();
+    Map<String, Long> counts = new HashMap<>();
     for (String value : values) counts.merge(value, 1L, Long::sum);
     counts.entrySet().removeIf(entry -> entry.getValue() == 1L);
     return counts;
