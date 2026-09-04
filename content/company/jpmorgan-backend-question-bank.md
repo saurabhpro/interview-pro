@@ -72,6 +72,54 @@ final class LruCache<K, V> {
 
 **Tests.** Capacity one; update without growth; `get` changes eviction order; eviction removes map and list state; null-key/value policy; invalid capacity. State explicitly that this implementation is not thread-safe.
 
+**Production shortcut.** If the interviewer asks for idiomatic Java rather than the internals, use `LinkedHashMap` in access-order mode:
+
+```java
+final class LruCache<K, V> extends LinkedHashMap<K, V> {
+    private final int capacity;
+
+    LruCache(int capacity) {
+        super(capacity, 0.75f, true); // accessOrder: get/put moves entry to the tail
+        if (capacity <= 0) throw new IllegalArgumentException("capacity");
+        this.capacity = capacity;
+    }
+
+    @Override
+    protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
+        return size() > capacity;
+    }
+}
+```
+
+`LinkedHashMap` combines hash lookup with a linked ordering, so expected `get`/`put` cost remains `O(1)` and space is `O(capacity)`. Say explicitly: “I would choose this in production; I would write the manual map-plus-doubly-linked-list version if the exercise is testing the data structure.” It is not thread-safe by itself, and it does not provide TTL, weighted eviction or distributed-cache behaviour.
+
+**Thread safety.** In access-order mode, `get` relinks an entry, so it is a write from a concurrency perspective. Protect both `get` and `put` with one lock (or use `Collections.synchronizedMap` with synchronized iteration):
+
+```java
+final class SynchronizedLruCache<K, V> {
+    private final int capacity;
+    private final LinkedHashMap<K, V> map =
+            new LinkedHashMap<>(16, 0.75f, true);
+
+    SynchronizedLruCache(int capacity) {
+        if (capacity <= 0) throw new IllegalArgumentException("capacity");
+        this.capacity = capacity;
+    }
+
+    public synchronized V get(K key) { return map.get(key); }
+
+    public synchronized void put(K key, V value) {
+        map.put(key, value);
+        if (map.size() > capacity) {
+            K eldest = map.keySet().iterator().next();
+            map.remove(eldest);
+        }
+    }
+}
+```
+
+`ConcurrentHashMap` alone is insufficient because it cannot maintain one global LRU order atomically. A compound “get-or-compute-and-put” operation must also be exposed under the same lock. For higher throughput, shard the cache and accept approximate rather than globally exact LRU ordering.
+
 ### 1.2 Find all subarrays whose sum equals K
 
 **Answer.** Use prefix sums. If the current prefix is `p`, every earlier prefix equal to `p - k` begins a valid subarray. Store all indices for each prefix—not only a count—because the question asks for the actual ranges. Seed prefix `0` at index `-1` to support ranges beginning at zero.
