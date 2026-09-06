@@ -30,7 +30,7 @@ jobs:
       - name: Check generated links
         run: python3 scripts/check-links.py _site
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
